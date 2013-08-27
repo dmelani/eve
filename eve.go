@@ -8,6 +8,8 @@ import (
 )
 const eveUrl string = "https://api.eveonline.com"
 
+var charactersCache map[string]CharactersResult
+
 type Character struct {
 	Name	string	`xml:"name,attr"`
 	ID	string	`xml:"characterID,attr"`
@@ -26,8 +28,15 @@ type CharactersResult struct {
 func Characters(keyID string, vCode string) (res CharactersResult) {
 	var v CharactersResult
 
-	url := fmt.Sprintf("%s/account/Characters.xml.aspx?keyID=%s&vCode=%s", eveUrl, keyID, vCode)
+	cacheKey := fmt.Sprintf("%s:%s", keyID, vCode)
+	if cachedResult, ok := charactersCache[cacheKey]; ok {
+		if cacheEntryValid(cachedResult) {
+			fmt.Printf("Found cached character result")
+			return cachedResult
+		}
+	}
 
+	url := fmt.Sprintf("%s/account/Characters.xml.aspx?keyID=%s&vCode=%s", eveUrl, keyID, vCode)
 	data, err := fetch(url)
 	if err != nil {
 		fmt.Printf("Fetch error: %v", err)
@@ -40,6 +49,7 @@ func Characters(keyID string, vCode string) (res CharactersResult) {
 		return
 	}
 
+	charactersCache[cacheKey] = v
 	return v
 }
 
