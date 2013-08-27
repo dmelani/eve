@@ -26,7 +26,8 @@ type CharactersResult struct {
 func Characters(keyID string, vCode string) (res CharactersResult) {
 	var v CharactersResult
 
-	url := fmt.Sprintf("%s/account/Characters.xml.aspx?keyID=%s&%s", eveUrl, keyID, vCode)
+	url := fmt.Sprintf("%s/account/Characters.xml.aspx?keyID=%s&vCode=%s", eveUrl, keyID, vCode)
+
 	data, err := fetch(url)
 	if err != nil {
 		fmt.Printf("Fetch error: %v", err)
