@@ -25,17 +25,15 @@ type CharactersResult struct {
 // Characters fetches, parses and returns a set of Eve Online characters.
 func Characters(keyID string, vCode string) (res CharactersResult) {
 	var v CharactersResult
-	var err error
-	var data []byte
 
 	url := fmt.Sprintf("%s/account/Characters.xml.aspx?keyID=%s&%s", eveUrl, keyID, vCode)
-	data, err = fetch(url)
+	data, err := fetch(url)
 	if err != nil {
 		fmt.Printf("Fetch error: %v", err)
 		return
 	}
 
-	err = xml.Unmarshal([]byte(data), &v)
+	err := xml.Unmarshal(data, &v)
 	if err != nil {
 		fmt.Printf("Unmarshal error: %v", err)
 		return
@@ -45,7 +43,6 @@ func Characters(keyID string, vCode string) (res CharactersResult) {
 }
 
 func fetch(url string) ([]byte, error) {
-	var err error
 	res, err := http.Get(url)
 	if err != nil {
 		return nil, err
