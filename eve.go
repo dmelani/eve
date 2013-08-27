@@ -33,7 +33,7 @@ func Characters(keyID string, vCode string) (res CharactersResult) {
 		return
 	}
 
-	err := xml.Unmarshal(data, &v)
+	err = xml.Unmarshal(data, &v)
 	if err != nil {
 		fmt.Printf("Unmarshal error: %v", err)
 		return
