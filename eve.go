@@ -3,12 +3,13 @@ package eve
 import (
 	"encoding/xml"
 	"fmt"
-	"net/http"
 	"io/ioutil"
+	"net/http"
+	"time"
 )
 const eveUrl string = "https://api.eveonline.com"
 
-var charactersCache map[string]CharactersResult
+var charactersCache = make(map[string]CharactersResult)
 
 type Character struct {
 	Name	string	`xml:"name,attr"`
@@ -25,32 +26,33 @@ type CharactersResult struct {
 }
 
 // Characters fetches, parses and returns a set of Eve Online characters.
-func Characters(keyID string, vCode string) (res CharactersResult) {
+func Characters(keyID string, vCode string) (res []Character) {
 	var v CharactersResult
 
 	cacheKey := fmt.Sprintf("%s:%s", keyID, vCode)
 	if cachedResult, ok := charactersCache[cacheKey]; ok {
 		if cacheEntryValid(cachedResult) {
-			fmt.Printf("Found cached character result")
-			return cachedResult
+			fmt.Println("Found cached character result")
+			return cachedResult.Characters
 		}
 	}
 
 	url := fmt.Sprintf("%s/account/Characters.xml.aspx?keyID=%s&vCode=%s", eveUrl, keyID, vCode)
 	data, err := fetch(url)
 	if err != nil {
-		fmt.Printf("Fetch error: %v", err)
+		fmt.Printf("Fetch error: %v\n", err)
 		return
 	}
 
 	err = xml.Unmarshal(data, &v)
 	if err != nil {
-		fmt.Printf("Unmarshal error: %v", err)
+		fmt.Printf("Unmarshal error: %v\n", err)
 		return
 	}
 
+	fmt.Println("Storing result into cache:", cacheKey)
 	charactersCache[cacheKey] = v
-	return v
+	return v.Characters
 }
 
 func fetch(url string) ([]byte, error) {
@@ -66,4 +68,16 @@ func fetch(url string) ([]byte, error) {
 		return nil, err
 	}
 	return []byte(data), nil
+}
+
+func cacheEntryValid(entry CharactersResult) bool {
+	t, err := time.Parse("2006-01-02 15:04:05", entry.CachedUntil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	if t.After(time.Now()) {
+		return true
+	}
+	return false
 }
