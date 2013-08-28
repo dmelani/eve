@@ -9,7 +9,21 @@ import (
 )
 const eveUrl string = "https://api.eveonline.com"
 
-var charactersCache = make(map[string]CharactersResult)
+var charactersCache = make(map[string]charactersResult)
+var accountBalancesCache = make(map[string]accountBalanceResult)
+
+type AccountBalance struct {
+	ID	string	`xml:"accountID,attr"`
+	Key	string	`xml:"accountKey,attr"`
+	Balance	string	`xml:"balance,attr"`
+}
+
+type accountBalanceResult struct {
+	XMLName		xml.Name		`xml:"eveapi"`
+	CurrentTime	string			`xml:"currentTime"`
+	AccountBalances	[]AccountBalance	`xml:"result>rowset>row"`
+	CachedUntil	string			`xml:"cachedUntil"`
+}
 
 type Character struct {
 	Name	string	`xml:"name,attr"`
@@ -18,7 +32,7 @@ type Character struct {
 	CorporationID	string	`xml:"corporationID,attr"`
 }
 
-type CharactersResult struct {
+type charactersResult struct {
 	XMLName		xml.Name	`xml:"eveapi"`
 	CurrentTime	string		`xml:"currentTime"`
 	Characters	[]Character	`xml:"result>rowset>row"`
@@ -26,8 +40,38 @@ type CharactersResult struct {
 }
 
 // Characters fetches, parses and returns a set of Eve Online characters.
+func AccountBalances(characterID string, keyID string, vCode string) (res []AccountBalance) {
+	var v accountBalanceResult
+
+	cacheKey := fmt.Sprintf("%s:%s:%s", characterID, keyID, vCode)
+	if cachedResult, ok := accountBalancesCache[cacheKey]; ok {
+		if cacheAccountBalanceEntryValid(cachedResult) {
+			fmt.Println("Found cached account balance result")
+			return cachedResult.AccountBalances
+		}
+	}
+
+	url := fmt.Sprintf("%s/char/AccountBalance.xml.aspx?characterID=%s&keyID=%s&vCode=%s", eveUrl, characterID, keyID, vCode)
+	data, err := fetch(url)
+	if err != nil {
+		fmt.Printf("Fetch error: %v\n", err)
+		return
+	}
+
+	err = xml.Unmarshal(data, &v)
+	if err != nil {
+		fmt.Printf("Unmarshal error: %v\n", err)
+		return
+	}
+
+	fmt.Println("Storing result into cache:", cacheKey)
+	accountBalancesCache[cacheKey] = v
+	return v.AccountBalances
+}
+
+// Characters fetches, parses and returns a set of Eve Online characters.
 func Characters(keyID string, vCode string) (res []Character) {
-	var v CharactersResult
+	var v charactersResult
 
 	cacheKey := fmt.Sprintf("%s:%s", keyID, vCode)
 	if cachedResult, ok := charactersCache[cacheKey]; ok {
@@ -70,7 +114,19 @@ func fetch(url string) ([]byte, error) {
 	return []byte(data), nil
 }
 
-func cacheEntryValid(entry CharactersResult) bool {
+func cacheAccountBalanceEntryValid(entry accountBalanceResult) bool {
+	t, err := time.Parse("2006-01-02 15:04:05", entry.CachedUntil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	if t.After(time.Now()) {
+		return true
+	}
+	return false
+}
+
+func cacheEntryValid(entry charactersResult) bool {
 	t, err := time.Parse("2006-01-02 15:04:05", entry.CachedUntil)
 	if err != nil {
 		fmt.Println(err)
